@@ -1,0 +1,22 @@
+{
+  "prefix": "!",
+  "welcome": {
+    "enabled": true,
+    "channelId": "",
+    "title": "Welcome to K5-HUB | On Top!",
+    "description": "🎉\\n\\nHey {mention}, selamat datang di server **K5-HUB**!\\nSelalu patuhi aturan yang ada yaa.",
+    "imageUrl": "",
+    "footer": "K5-HUB • On Top",
+    "color": "#8B35FF"
+  },
+  "store": {
+    "enabled": true,
+    "channelId": "",
+    "title": "📦 K5-HUB Script Store",
+    "description": "Pilih script yang kamu inginkan dari menu di bawah!",
+    "imageUrl": "",
+    "footer": "K5-HUB • Script Store",
+    "color": "#8B35FF",
+    "scripts": []
+  }
+}
