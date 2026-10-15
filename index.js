@@ -45,26 +45,26 @@ case"setstoretitle":cfg.store.title=arg.slice(0,256);save();return m.reply("✅ 
 case"setstoredesc":cfg.store.description=arg.slice(0,3000);save();return m.reply("✅ Deskripsi store diubah.");
 case"storeimage":if(arg.toLowerCase()==="off")cfg.store.imageUrl="";else if(validUrl(arg))cfg.store.imageUrl=arg;else return m.reply("Masukkan URL gambar atau off.");save();return m.reply("✅ Banner store diubah.");
 case"addscript":{
-if(cfg.store.scripts.length>=25)return m.reply("Maksimal 25 script.");
-const ask=async prompt=>{await m.reply(prompt);const collected=await m.channel.awaitMessages({filter:x=>x.author.id===m.author.id&&x.channelId===m.channelId&&!x.author.bot,max:1,time:60000,errors:["time"]}).catch(()=>null);return collected?.first()?.content?.trim()||null};
-let name=arg.trim();
-if(!name)name=await ask("📝 Tambah Script — 1/4\nKetik nama script. Ketik batal untuk membatalkan.");
-if(!name||name.toLowerCase()==="batal")return m.reply("Penambahan script dibatalkan atau waktu habis.");
-if(name.length>100)return m.reply("Nama maksimal 100 karakter.");
-if(cfg.store.scripts.some(s=>s.name.toLowerCase()===name.toLowerCase()))return m.reply("Nama script sudah ada.");
-let type=await ask("2/4 — Kategori\nKetik free atau donor:");
-if(!type||type.toLowerCase()==="batal")return m.reply("Penambahan script dibatalkan atau waktu habis.");
-type=type.toLowerCase();
-if(!["free","donor"].includes(type))return m.reply("Kategori harus free atau donor. Jalankan !addscript lagi.");
-const description=await ask("3/4 — Deskripsi\nKetik deskripsi singkat script:");
-if(!description||description.toLowerCase()==="batal")return m.reply("Penambahan script dibatalkan atau waktu habis.");
-const input=await ask("4/4 — Kode script\nKirim kode loadstring lengkap sebagai pesan biasa, contoh:\nloadstring(game:HttpGet(\\"https://raw.githubusercontent.com/owner/repo/main/LOADER.lua\\"))()");
-if(!input||input.toLowerCase()==="batal")return m.reply("Penambahan script dibatalkan atau waktu habis.");
+const parts=arg.split("|").map(x=>x.trim());
+let name="",type="free",description="",input="";
+if(parts.length>=4){[name,type,description]=parts;input=parts.slice(3).join("|").trim()}
+else if(parts.length===2){[name,input]=parts;description=name}
+else if(parts.length===3){[name,type,input]=parts;description=name}
+else return m.reply("Format: !addscript Nama | free/donor | Deskripsi | KODE_LOADSTRING\nContoh: !addscript Kaitun | donor | Iron Soul Kaitun Code | loadstring(game:HttpGet(\"https://raw.githubusercontent.com/frilshiaputri-cmd/Ironsoulkaitun/main/LOADER.lua\"))()");
+type=(type||"free").toLowerCase();
+input=input.trim().replace(/^<|>$/g,"");
+let url=input;
 const match=input.match(/game\s*:\s*HttpGet\s*\(\s*(["'])(https?:\/\/[^"']+)\1\s*\)/i);
-if(!match)return m.reply("Kode tidak terbaca. Kirim loadstring(game:HttpGet(\\"URL\\"))() dengan URL http/https. Jalankan !addscript untuk mencoba lagi.");
-const url=match[2];
-if(!validUrl(url))return m.reply("URL pada loadstring tidak valid.");
-cfg.store.scripts.push({name,type,description,url});
+if(/^loadstring\s*\(/i.test(input)){
+if(!match)return m.reply("Kode loadstring tidak terbaca. Pastikan formatnya loadstring(game:HttpGet(\"URL\"))().");
+url=match[2];
+}
+if(!name||name.length>100)return m.reply("Nama script wajib diisi (maksimal 100 karakter).");
+if(!["free","donor"].includes(type))return m.reply("Kategori harus free atau donor.");
+if(!validUrl(url))return m.reply("URL/loadstring tidak valid. Pastikan URL memakai http:// atau https://.");
+if(cfg.store.scripts.length>=25)return m.reply("Maksimal 25 script.");
+if(cfg.store.scripts.some(s=>s.name.toLowerCase()===name.toLowerCase()))return m.reply("Nama script sudah ada. Gunakan nama lain atau hapus script lama.");
+cfg.store.scripts.push({name,type,description:description||name,url});
 save();
 return m.reply("Script "+name+" berhasil ditambahkan sebagai "+type+". Jalankan !poststore untuk memperbarui menu Get Script.");
 }
