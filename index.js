@@ -31,7 +31,7 @@ return i.followUp({content:loader,ephemeral:true});
 });
 client.on("messageCreate",async m=>{if(!m.guild||m.author.bot||!m.content.startsWith(cfg.prefix))return;const raw=m.content.slice(cfg.prefix.length).trim(),idx=raw.indexOf(" "),cmd=(idx<0?raw:raw.slice(0,idx)).toLowerCase(),arg=idx<0?"":raw.slice(idx+1).trim();const protectedCmd=["clear","setwelcomechannel","welcometitle","welcomedesc","welcomeimage","welcomefooter","welcomeon","welcomeoff","testwelcome","setstorechannel","setstoretitle","setstoredesc","storeimage","addscript","removescript","scripts","poststore","storeon","storeoff","setprefix","setcolor"];if(protectedCmd.includes(cmd)&&!admin(m))return m.reply("⛔ Perintah ini khusus Administrator.");try{switch(cmd){
 case"clear":{if(!m.guild.members.me?.permissionsIn(m.channel).has(PermissionFlagsBits.ManageMessages))return m.reply("⛔ Bot perlu izin Manage Messages di channel ini.");const n=Number.parseInt(arg||"50",10);if(!Number.isInteger(n)||n<1||n>100)return m.reply("Format: !clear [jumlah 1-100]");const sent=await m.channel.send("🧹 Membersihkan "+n+" pesan...");try{const deleted=await m.channel.bulkDelete(n,true);await sent.edit("✅ Berhasil menghapus "+deleted.size+" pesan (pesan lebih dari 14 hari otomatis dilewati).");}catch(e){await sent.edit("❌ Gagal menghapus pesan. Pastikan bot memiliki izin Manage Messages.");}return;}
-case"help":return m.reply("**K5-HUB Commands**\n!clear [jumlah 1-100] — hapus pesan di channel\n!setwelcomechannel #welcome\n!welcometitle teks · !welcomedesc teks\n!welcomeimage URL/off · !welcomefooter teks\n!welcomeon / !welcomeoff · !testwelcome\n!setstorechannel #get-script\n!setstoretitle teks · !setstoredesc teks · !storeimage URL/off\n!addscript Nama | free/donor | Deskripsi | loadstring(game:HttpGet("URL"))()\n!addscript Nama | URL atau loadstring\n!removescript Nama · !scripts · !poststore\n!storeon / !storeoff · !setprefix ? · !setcolor #8B35FF");
+case"help":return m.reply("**K5-HUB Commands**\n!clear [jumlah 1-100] — hapus pesan di channel\n!setwelcomechannel #welcome\n!welcometitle teks · !welcomedesc teks\n!welcomeimage URL/off · !welcomefooter teks\n!welcomeon / !welcomeoff · !testwelcome\n!setstorechannel #get-script\n!setstoretitle teks · !setstoredesc teks · !storeimage URL/off\n!addscript — bot akan menanyakan nama, kategori, deskripsi, lalu kode loadstring lewat chat\n!removescript Nama · !scripts · !poststore\n!storeon / !storeoff · !setprefix ? · !setcolor #8B35FF");
 case"setwelcomechannel":{const id=getId(arg);if(!id)return m.reply("Contoh: !setwelcomechannel #welcome");cfg.welcome.channelId=id;save();return m.reply("✅ Channel welcome disetel.")}
 case"welcometitle":cfg.welcome.title=arg.slice(0,256);save();return m.reply("✅ Judul welcome diubah.");
 case"welcomedesc":cfg.welcome.description=arg.replace(/\\n/g,"\n").slice(0,4000);save();return m.reply("✅ Pesan welcome diubah.");
@@ -44,7 +44,30 @@ case"setstorechannel":{const id=getId(arg);if(!id)return m.reply("Contoh: !setst
 case"setstoretitle":cfg.store.title=arg.slice(0,256);save();return m.reply("✅ Judul store diubah.");
 case"setstoredesc":cfg.store.description=arg.slice(0,3000);save();return m.reply("✅ Deskripsi store diubah.");
 case"storeimage":if(arg.toLowerCase()==="off")cfg.store.imageUrl="";else if(validUrl(arg))cfg.store.imageUrl=arg;else return m.reply("Masukkan URL gambar atau off.");save();return m.reply("✅ Banner store diubah.");
-case"addscript":{const p=arg.split("|").map(x=>x.trim());let name="",type="free",description="",input="";if(p.length===2){[name,input]=p;description=name}else if(p.length===3){[name,type,input]=p;description=name}else if(p.length>=4){[name,type,description]=p;input=p.slice(3).join("|").trim()}else return m.reply("Format: !addscript Nama | free/donor | Deskripsi | loadstring(game:HttpGet(\\"https://raw.../LOADER.lua\\"))()\nURL biasa juga didukung.");type=(type||"free").toLowerCase();input=input.trim().replace(/^<|>$/g,"");let url=input;const loadMatch=input.match(/game\\s*:\\s*HttpGet\\s*\\(\\s*([\\"\'])(https?:\\/\\/[^\\"\']+)\\1\\s*\\)/i);if(/^loadstring\\s*\\(/i.test(input)){if(!loadMatch)return m.reply("Format loadstring tidak terbaca. Gunakan loadstring(game:HttpGet(\\"https://...lua\\"))()");url=loadMatch[2]}if(!name||name.length>100)return m.reply("Nama script wajib diisi (maksimal 100 karakter).");if(!["free","donor"].includes(type))return m.reply("Kategori harus free atau donor.");if(!validUrl(url))return m.reply("URL atau loadstring tidak valid. Pastikan URL diawali http:// atau https://.");if(cfg.store.scripts.length>=25)return m.reply("Maksimal 25 script.");if(cfg.store.scripts.some(s=>s.name.toLowerCase()===name.toLowerCase()))return m.reply("Nama script sudah ada. Hapus/ubah nama terlebih dahulu.");cfg.store.scripts.push({name,type,description:description||name,url});save();return m.reply("✅ Script **"+name+"** ditambahkan sebagai **"+type+"**. Loadstring dikenali otomatis. Jalankan !poststore untuk memperbarui panel.")}
+case"addscript":{
+if(cfg.store.scripts.length>=25)return m.reply("Maksimal 25 script.");
+const ask=async prompt=>{await m.reply(prompt);const collected=await m.channel.awaitMessages({filter:x=>x.author.id===m.author.id&&x.channelId===m.channelId&&!x.author.bot,max:1,time:60000,errors:["time"]}).catch(()=>null);return collected?.first()?.content?.trim()||null};
+let name=arg.trim();
+if(!name)name=await ask("📝 Tambah Script — 1/4\nKetik nama script. Ketik batal untuk membatalkan.");
+if(!name||name.toLowerCase()==="batal")return m.reply("Penambahan script dibatalkan atau waktu habis.");
+if(name.length>100)return m.reply("Nama maksimal 100 karakter.");
+if(cfg.store.scripts.some(s=>s.name.toLowerCase()===name.toLowerCase()))return m.reply("Nama script sudah ada.");
+let type=await ask("2/4 — Kategori\nKetik free atau donor:");
+if(!type||type.toLowerCase()==="batal")return m.reply("Penambahan script dibatalkan atau waktu habis.");
+type=type.toLowerCase();
+if(!["free","donor"].includes(type))return m.reply("Kategori harus free atau donor. Jalankan !addscript lagi.");
+const description=await ask("3/4 — Deskripsi\nKetik deskripsi singkat script:");
+if(!description||description.toLowerCase()==="batal")return m.reply("Penambahan script dibatalkan atau waktu habis.");
+const input=await ask("4/4 — Kode script\nKirim kode loadstring lengkap sebagai pesan biasa, contoh:\nloadstring(game:HttpGet(\\"https://raw.githubusercontent.com/owner/repo/main/LOADER.lua\\"))()");
+if(!input||input.toLowerCase()==="batal")return m.reply("Penambahan script dibatalkan atau waktu habis.");
+const match=input.match(/game\s*:\s*HttpGet\s*\(\s*(["'])(https?:\/\/[^"']+)\1\s*\)/i);
+if(!match)return m.reply("Kode tidak terbaca. Kirim loadstring(game:HttpGet(\\"URL\\"))() dengan URL http/https. Jalankan !addscript untuk mencoba lagi.");
+const url=match[2];
+if(!validUrl(url))return m.reply("URL pada loadstring tidak valid.");
+cfg.store.scripts.push({name,type,description,url});
+save();
+return m.reply("Script "+name+" berhasil ditambahkan sebagai "+type+". Jalankan !poststore untuk memperbarui menu Get Script.");
+}
 case"removescript":{const n=cfg.store.scripts.findIndex(s=>s.name.toLowerCase()===arg.toLowerCase());if(n<0)return m.reply("Script tidak ditemukan.");cfg.store.scripts.splice(n,1);save();return m.reply("🗑️ Script dihapus. Jalankan !poststore.")}
 case"scripts":return m.reply(cfg.store.scripts.length?cfg.store.scripts.map((s,i)=>(i+1)+". "+s.name+" — "+s.type).join("\n"):"Belum ada script.");
 case"poststore":{const ch=cfg.store.channelId?m.guild.channels.cache.get(cfg.store.channelId):m.channel;if(!ch?.isTextBased())return m.reply("Atur channel dengan !setstorechannel #channel");return ch.send({embeds:[storeEmbed()],components:components(),files:!validUrl(cfg.store.imageUrl)&&fs.existsSync(storePath)?[new AttachmentBuilder(storePath,{name:"script-panel.png"})]:[]}).then(()=>m.reply("✅ Panel Script Store dikirim."))}
