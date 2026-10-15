@@ -45,28 +45,33 @@ case"setstoretitle":cfg.store.title=arg.slice(0,256);save();return m.reply("✅ 
 case"setstoredesc":cfg.store.description=arg.slice(0,3000);save();return m.reply("✅ Deskripsi store diubah.");
 case"storeimage":if(arg.toLowerCase()==="off")cfg.store.imageUrl="";else if(validUrl(arg))cfg.store.imageUrl=arg;else return m.reply("Masukkan URL gambar atau off.");save();return m.reply("✅ Banner store diubah.");
 case"addscript":{
-const parts=arg.split("|").map(x=>x.trim());
-let name="",type="free",description="",input="";
-if(parts.length>=4){[name,type,description]=parts;input=parts.slice(3).join("|").trim()}
-else if(parts.length===2){[name,input]=parts;description=name}
-else if(parts.length===3){[name,type,input]=parts;description=name}
-else return m.reply("Format: !addscript Nama | free/donor | Deskripsi | KODE_LOADSTRING\nContoh: !addscript Kaitun | donor | Iron Soul Kaitun Code | loadstring(game:HttpGet(\"https://raw.githubusercontent.com/frilshiaputri-cmd/Ironsoulkaitun/main/LOADER.lua\"))()");
-type=(type||"free").toLowerCase();
-input=input.trim().replace(/^<|>$/g,"");
-let url=input;
+if(cfg.store.scripts.length>=25)return m.reply("Maksimal 25 script.");
+const ask=async prompt=>{await m.reply(prompt);const collected=await m.channel.awaitMessages({filter:x=>x.author.id===m.author.id&&x.channelId===m.channelId&&!x.author.bot,max:1,time:120000,errors:["time"]}).catch(()=>null);return collected?.first()?.content?.trim()||null};
+let name=arg.trim();
+if(!name)name=await ask("📝 Tambah Script — 1/4\nKetik nama script yang ingin ditampilkan:");
+if(!name||name.toLowerCase()==="batal")return m.reply("Penambahan script dibatalkan atau waktu habis.");
+if(name.length>100)return m.reply("Nama maksimal 100 karakter.");
+if(cfg.store.scripts.some(s=>s.name.toLowerCase()===name.toLowerCase()))return m.reply("Nama script sudah ada.");
+const categoryRow=new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId("addscript_free_"+m.author.id).setLabel("Free").setEmoji("📜").setStyle(ButtonStyle.Success),new ButtonBuilder().setCustomId("addscript_donor_"+m.author.id).setLabel("Donatur").setEmoji("💎").setStyle(ButtonStyle.Primary));
+const categoryMsg=await m.reply({content:"🏷️ Tambah Script — 2/4\nPilih salah satu kategori:",components:[categoryRow]});
+const picked=await categoryMsg.awaitMessageComponent({filter:i=>i.user.id===m.author.id&&i.customId.endsWith("_"+m.author.id),time:120000,componentType:2}).catch(()=>null);
+if(!picked)return m.reply("Waktu habis. Jalankan !addscript untuk mencoba lagi.");
+const type=picked.customId.includes("_donor_")?"donor":"free";
+await picked.update({content:"Kategori dipilih: "+(type==="donor"?"Donatur":"Free"),components:[]});
+const description=await ask("📝 Tambah Script — 3/4\nKetik deskripsi script:");
+if(!description||description.toLowerCase()==="batal")return m.reply("Penambahan script dibatalkan atau waktu habis.");
+const input=await ask("💬 Tambah Script — 4/4\nKirim respons/kode script yang ingin bot tampilkan, misalnya kode loadstring lengkap. Kamu bisa mengetik atau menempelkan sendiri:");
+if(!input||input.toLowerCase()==="batal")return m.reply("Penambahan script dibatalkan atau waktu habis.");
 const match=input.match(/game\s*:\s*HttpGet\s*\(\s*(["'])(https?:\/\/[^"']+)\1\s*\)/i);
+let url=input;
 if(/^loadstring\s*\(/i.test(input)){
-if(!match)return m.reply("Kode loadstring tidak terbaca. Pastikan formatnya loadstring(game:HttpGet(\"URL\"))().");
+if(!match)return m.reply("Kode loadstring tidak terbaca. Jalankan !addscript lagi dan kirim kode dengan format loadstring(game:HttpGet(\"URL\"))().");
 url=match[2];
 }
-if(!name||name.length>100)return m.reply("Nama script wajib diisi (maksimal 100 karakter).");
-if(!["free","donor"].includes(type))return m.reply("Kategori harus free atau donor.");
-if(!validUrl(url))return m.reply("URL/loadstring tidak valid. Pastikan URL memakai http:// atau https://.");
-if(cfg.store.scripts.length>=25)return m.reply("Maksimal 25 script.");
-if(cfg.store.scripts.some(s=>s.name.toLowerCase()===name.toLowerCase()))return m.reply("Nama script sudah ada. Gunakan nama lain atau hapus script lama.");
-cfg.store.scripts.push({name,type,description:description||name,url});
+if(!validUrl(url))return m.reply("Respons harus berupa URL http/https atau kode loadstring yang berisi URL http/https.");
+cfg.store.scripts.push({name,type,description,url});
 save();
-return m.reply("Script "+name+" berhasil ditambahkan sebagai "+type+". Jalankan !poststore untuk memperbarui menu Get Script.");
+return m.reply("Script "+name+" berhasil ditambahkan. Jalankan !poststore untuk memperbarui menu Get Script.");
 }
 case"removescript":{const n=cfg.store.scripts.findIndex(s=>s.name.toLowerCase()===arg.toLowerCase());if(n<0)return m.reply("Script tidak ditemukan.");cfg.store.scripts.splice(n,1);save();return m.reply("🗑️ Script dihapus. Jalankan !poststore.")}
 case"scripts":return m.reply(cfg.store.scripts.length?cfg.store.scripts.map((s,i)=>(i+1)+". "+s.name+" — "+s.type).join("\n"):"Belum ada script.");
