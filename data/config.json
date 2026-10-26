@@ -12,10 +12,10 @@
   "store": {
     "enabled": true,
     "channelId": "",
-    "title": "📦 K5-HUB Script Store",
+    "title": "📦 K5-HUB Script Panel",
     "description": "Pilih script yang kamu inginkan dari menu di bawah!",
     "imageUrl": "",
-    "footer": "K5-HUB • Script Store",
+    "footer": "K5-HUB • Script Panel",
     "color": "#8B35FF",
     "scripts": []
   }
